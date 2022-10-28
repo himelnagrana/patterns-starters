@@ -1,3 +1,52 @@
+// ---------------------------------------------------------------------------
+// // linked list
+abstract class AbstractHandler<T> {
+  private nextHandler: AbstractHandler<T>;
+
+  next(handler: AbstractHandler<T>): AbstractHandler<T> {
+    this.nextHandler = handler;
+    return handler;
+  }
+
+  handle(request: T): any {
+    return this.nextHandler ? this.nextHandler.handle(request) : null;
+  }
+}
+
+// // REQ - 1: Validate order id
+class IdValidator extends AbstractHandler<Order> {
+  override handle(request: Order): any {
+    if (request.id > 1) {
+      return super.handle(request);
+    }
+
+    return null;
+  }
+}
+
+// // REQ - 2: Validate order id
+class StatusValidator extends AbstractHandler<Order> {
+  override handle(request: Order): any {
+    if (request.status === Status.Delivered) {
+      return null;
+    }
+
+    return super.handle(request);
+  }
+}
+
+// // REQ - 3: Validate priority
+class PriorityValidator extends AbstractHandler<Order> {
+  override handle(request: Order): any {
+    if (request.priority === Priority.High) {
+      console.log('High Priority');
+    }
+
+    return super.handle(request);
+  }
+}
+
+// ---------------------------------------------------------------------------
 enum Status {Received, Pending, InProcess, Sent, Delivered }
 enum Priority { Low, Medium, High, Urgent }
 
@@ -40,13 +89,14 @@ const orders: Order[] = [
 class OrderManager {
   private readonly orders: Order[];
 
-  constructor(orders:Order[]) {
+  constructor(orders: Order[]) {
     this.orders = orders;
   }
 
-  process() {
+  process(handler: AbstractHandler<Order>) {
     for(const order of this.orders) {
-      console.log(order);
+      handler.handle(order);
+      // console.log(order);
     }
   }
 }
@@ -57,5 +107,17 @@ class OrderManager {
  *   - check status: if received, move to done - no need to check priority
  *   - check priority: if urgent, send to a urgent queue and return
  */
+
+const idValidator = new IdValidator();
+const statusValidator = new StatusValidator();
+const priorityValidator = new PriorityValidator();
+
+
+// // product intervention
+// chronologically -  Id, status, priority
+const basicOrderFlow = idValidator.next(statusValidator).next(priorityValidator);
+const alternativeOrderFlow = statusValidator.next(priorityValidator).next(idValidator);
+
 const orderManager = new OrderManager(orders);
-orderManager.process();
+orderManager.process(basicOrderFlow); // first 50% users
+orderManager.process(alternativeOrderFlow);  // next 50% users
